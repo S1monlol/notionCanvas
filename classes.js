@@ -1,0 +1,9 @@
+const classes = [
+    { name: 'Psychology', id: '5e957480-c32e-45ab-a04e-180a32300be8' },
+    { name: 'ELA', id: '878973b4-a638-47cc-bd52-105555c71a52' },
+    { name: 'History', id: '11376bef-40f8-4bd0-849b-01fca383ef3b' },
+    { name: 'Engineering/Computer Science', id: '33db33e6-9451-4811-9b34-9b0b28e511a0' },
+    { name: 'Physics', id: 'b75c0087-e8b5-40c7-9651-12e5340351e5' }
+]
+
+module.exports = { classes };
