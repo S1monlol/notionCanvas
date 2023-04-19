@@ -38,6 +38,7 @@ initElement = async (calendar, i) => {
     }
 
     let doDate = calendar[2][i][1][2][3]
+
     let link = calendar[2][i][1][7][3]
 
     let shortName = sum.slice(0, sum.indexOf("[")).trim();
@@ -45,6 +46,8 @@ initElement = async (calendar, i) => {
     // console.log("Do date : ", doDate)
     // console.log("Sum : ", sum)
     // console.log("Id: ", id)
+
+    let date = new Date(doDate).toLocaleDateString();
 
 
     // Specify the properties for the new element
@@ -67,7 +70,7 @@ initElement = async (calendar, i) => {
         },
         Deadline: {
             date: {
-                start: new Date(doDate)
+                start: new Date(date)
             },
         },
         Link: {
@@ -90,12 +93,48 @@ initElement = async (calendar, i) => {
                     href: link
                 }
             ]
-}
+        }
 
     };
 
-return newElement
+    return newElement
 }
+
+fixDate = async (element, prevAssignments, curDate) => {
+    // if the assignment has the same name but a different date, update the date
+    if (prevAssignments.includes(element.Name.title[0].text.content)) {
+        let oldDate = prevAssignments[prevAssignments.indexOf(element.Name.title[0].text.content) + 1]
+
+        oldDate = new Date(oldDate).toLocaleDateString();
+
+        if (oldDate != curDate) {
+            // change date with filter
+            const response = await notion.databases.query({
+                database_id: databaseId,
+            });
+            for (const assignment of response.results) {
+                if (assignment.properties.Name.title[0]?.plain_text == element.Name.title[0].text.content) {
+
+                    // check if old date is the same as the new date
+
+                    const response = await notion.pages.update({
+                        page_id: assignment.id,
+                        properties: {
+                            Deadline: {
+                                date: {
+                                    start: new Date(curDate)
+                                }
+                            }
+                        }
+                    });
+                    console.log(`Updated date for ${element.Name.title[0].text.content}`);
+                }
+            }
+        }
+    }
+}
+
+
 
 // Add the new element to the database
 async function addElementToDatabase(databaseId, newElement) {
@@ -118,18 +157,28 @@ async function getPrevAssignments() {
             database_id: databaseId,
         });
         console.log(`Retrieved ${response.results.length} current assignments`);
-        let prevAssignments = []
-        for (let assignment of response.results) {
+        const prevAssignments = [];
+        for (const assignment of response.results) {
+            const classId = assignment.properties.Class.relation[0]?.id;
+            if (classId && classes.some(c => c.id === classId)) {
+                const assignmentName = assignment.properties.Name.title[0]?.plain_text;
+                if (assignmentName) {
+                    prevAssignments.push(assignmentName);
+                }
+                // add date
+                const assignmentDate = assignment.properties.Deadline.date.start;
+                if (assignmentDate) {
+                    prevAssignments.push(assignmentDate);
+                }
 
-            if (assignment.properties.Name.title[0]?.plain_text) {
-                prevAssignments.push(assignment.properties.Name.title[0]?.plain_text)
             }
         }
-        return prevAssignments
+        return prevAssignments;
     } catch (error) {
         console.error(error);
     }
 }
+
 
 let main = async () => {
     // get assignments from calendarUrl 
@@ -148,11 +197,23 @@ let main = async () => {
             continue
         }
 
-        // check if the current element has already been added from the list of prevAssignments
+        // remove the Z and replace with +00:00
+        let curDate = element.Deadline.date.start
+
+        // if (curDate.includes("Z")) {
+        //     curDate = curDate.slice(0, -1) + "+00:00";
+        // }
+
+        curDate = new Date(curDate).toLocaleDateString();
+
+        // check if the current element has already been added from the list of prevAssignments & if the assignment has the same date, if it doesnt have the same date, update it
+        // if (prevAssignments.includes(element.Name.title[0].text.content )) {
         if (prevAssignments.includes(element.Name.title[0].text.content)) {
             console.log("Already added", element.Name.title[0].text.content)
+            fixDate(element, prevAssignments, curDate)
             continue
         }
+
         addElementToDatabase(databaseId, element);
     }
 
@@ -162,15 +223,20 @@ let deleteAll = async () => {
     const response = await notion.databases.query({
         database_id: databaseId,
     });
+
     const entries = response.results;
     for (const entry of entries) {
-        await notion.pages.update({
-            page_id: entry.id,
-            properties: {
-                // Set all properties to null to remove the entry
-            },
-            archived: true, // Archive the page to move it to the trash
-        });
+        console.log(entry.properties.Class.relation[0])
+
+        if (classes.some(c => c.id === entry.properties.Class.relation[0]?.id)) {
+            await notion.pages.update({
+                page_id: entry.id,
+                properties: {
+                    // Set all properties to null to remove the entry
+                },
+                archived: true, // Archive the page to move it to the trash
+            });
+        }
     }
 }
 
