@@ -198,18 +198,23 @@ let main = async () => {
         }
 
         // remove the Z and replace with +00:00
-        let curDate = element.Deadline.date.start
+        let curDate = element.Deadline.date.start;
+        curDate = new Date(curDate).toLocaleString("en-US", { timeZone: "America/New_York" });
 
-        // if (curDate.includes("Z")) {
-        //     curDate = curDate.slice(0, -1) + "+00:00";
-        // }
+        let [month, day, year] = curDate.split("/");
+        day = parseInt(day) + 1;
 
-        curDate = new Date(curDate).toLocaleDateString();
+        // Create new date object and format it back into a string
+        let nextDate = new Date(`${month}/${day}/${year}`);
+        curDate = nextDate.toLocaleDateString("en-US", { timeZone: "America/New_York" });
+
+
+
 
         // check if the current element has already been added from the list of prevAssignments & if the assignment has the same date, if it doesnt have the same date, update it
         // if (prevAssignments.includes(element.Name.title[0].text.content )) {
         if (prevAssignments.includes(element.Name.title[0].text.content)) {
-            console.log("Already added", element.Name.title[0].text.content)
+            console.log("Already added", element.Name.title[0].text.content, curDate)
             fixDate(element, prevAssignments, curDate)
             continue
         }
