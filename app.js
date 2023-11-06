@@ -127,7 +127,7 @@ fixDate = async (element, prevAssignments, curDate) => {
                             }
                         }
                     });
-                    console.log(`Updated date for ${element.Name.title[0].text.content}`);
+                    // console.log(`Updated date for ${element.Name.title[0].text.content}`);
                 }
             }
         }
@@ -156,6 +156,17 @@ async function getPrevAssignments() {
         const response = await notion.databases.query({
             database_id: databaseId,
         });
+
+        while(response.has_more) {
+            const nextResponse = await notion.databases.query({
+                database_id: databaseId,
+                start_cursor: response.next_cursor,
+            });
+            response.results.push(...nextResponse.results);
+            response.has_more = nextResponse.has_more;
+            response.next_cursor = nextResponse.next_cursor;
+        }
+        
         console.log(`Retrieved ${response.results.length} current assignments`);
         const prevAssignments = [];
         for (const assignment of response.results) {
@@ -166,10 +177,10 @@ async function getPrevAssignments() {
                     prevAssignments.push(assignmentName);
                 }
                 // add date
-                const assignmentDate = assignment.properties.Deadline.date.start;
-                if (assignmentDate) {
-                    prevAssignments.push(assignmentDate);
-                }
+                // const assignmentDate = assignment.properties.Deadline.date.start;
+                // if (assignmentDate) {
+                //     prevAssignments.push(assignmentDate);
+                // }
 
             }
         }
@@ -214,11 +225,12 @@ let main = async () => {
         // check if the current element has already been added from the list of prevAssignments & if the assignment has the same date, if it doesnt have the same date, update it
         // if (prevAssignments.includes(element.Name.title[0].text.content )) {
         if (prevAssignments.includes(element.Name.title[0].text.content)) {
-            console.log("Already added", element.Name.title[0].text.content, curDate)
+            // console.log("Already added", element.Name.title[0].text.content, curDate)
             fixDate(element, prevAssignments, curDate)
             continue
         }
 
+        // console.log(element.Name.title[0].text.content, " not in ", prevAssignments)
         addElementToDatabase(databaseId, element);
     }
 
