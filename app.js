@@ -139,7 +139,7 @@ async function addElementToDatabase(databaseId, newElement) {
 			},
 			properties: newElement,
 		});
-		console.log(`New element added: ${newElement.Name.title[0].text.content}`);
+		// console.log(`New element added: ${newElement.Name.title[0].text.content}`);
 	} catch (error) {
 		console.error(error.body);
 	}
@@ -162,16 +162,17 @@ async function getPrevAssignments() {
 
 		console.log(`Retrieved ${response.results.length} current assignments`);
 		const prevAssignments = [];
-		for (const assignment of response.results) {
+		for (let assignment of response.results) {
+            if(!assignment.properties?.Class) continue;
 			const classId = assignment.properties.Class.relation[0]?.id;
-			if (!classId || !classes.some((c) => c.id === classId)) return;
+			if (!classId) continue;
 			const assignmentName = assignment.properties.Name.title[0]?.plain_text;
-			if (!assignmentName) return;
+			if (!assignmentName) continue;
 			prevAssignments.push(assignmentName);
 		}
 		return prevAssignments;
 	} catch (error) {
-		console.error(error);
+		console.log(error);
 	}
 }
 
@@ -206,12 +207,12 @@ let main = async () => {
 		});
 
 		if (prevAssignments.includes(element.Name.title[0].text.content)) {
-			// console.log("Already added", element.Name.title[0].text.content, curDate)
+			console.log("Already added", element.Name.title[0].text.content, curDate)
 			fixDate(element, prevAssignments, curDate);
 			continue;
 		}
 
-		// console.log(element.Name.title[0].text.content, " not in ", prevAssignments)
+		console.log(element.Name.title[0].text.content, " not in ", prevAssignments)
 		addElementToDatabase(databaseId, element);
 	}
 };
@@ -223,7 +224,7 @@ let deleteAll = async () => {
 
 	const entries = response.results;
 	for (const entry of entries) {
-		console.log(entry.properties.Class.relation[0]);
+		// console.log(entry.properties.Class.relation[0]);
 
 		if (!classes.some((c) => c.id === entry.properties.Class.relation[0]?.id))
 			return;
