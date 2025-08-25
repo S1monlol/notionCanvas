@@ -163,7 +163,7 @@ async function getPrevAssignments() {
 		console.log(`Retrieved ${response.results.length} current assignments`);
 		const prevAssignments = [];
 		for (let assignment of response.results) {
-            if(!assignment.properties?.Class) continue;
+			if (!assignment.properties?.Class) continue;
 			const classId = assignment.properties.Class.relation[0]?.id;
 			if (!classId) continue;
 			const assignmentName = assignment.properties.Name.title[0]?.plain_text;
@@ -207,12 +207,16 @@ let main = async () => {
 		});
 
 		if (prevAssignments.includes(element.Name.title[0].text.content)) {
-			console.log("Already added", element.Name.title[0].text.content, curDate)
+			console.log("Already added", element.Name.title[0].text.content, curDate);
 			fixDate(element, prevAssignments, curDate);
 			continue;
 		}
 
-		console.log(element.Name.title[0].text.content, " not in ", prevAssignments)
+		console.log(
+			element.Name.title[0].text.content,
+			" not in ",
+			prevAssignments,
+		);
 		addElementToDatabase(databaseId, element);
 	}
 };

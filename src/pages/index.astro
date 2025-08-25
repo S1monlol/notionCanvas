@@ -1,0 +1,41 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Canvas to Notion Integration</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script>
+            if (localStorage.getItem("notion_oauth_access_token")) {
+                window.location.href = "/setup";
+            }
+        </script></head
+    >
+
+    <body
+        style="font-family: system-ui, sans-serif; padding: 2rem; max-width: 600px; margin: auto;"
+    >
+        <h1>Canvas to Notion Integration</h1>
+        <p>
+            Welcome! This tool helps you connect your Canvas assignments
+            calendar to your Notion workspace.
+        </p>
+        <ul>
+            <li>Log in with Notion</li>
+            <li>Connect your Canvas calendar</li>
+            <li>Map your classes</li>
+            <li>Import assignments to Notion with ease</li>
+        </ul>
+        <div style="margin-top: 2rem;">
+            <form method="GET" action="/api/notion-auth-redirect">
+                <button
+                    type="submit"
+                    style="padding: 0.75rem 1.5rem; font-size: 1.15rem;"
+                >
+                    Log in with Notion
+                </button>
+            </form>
+            <small style="color: #888; display: block; margin-top: 0.75rem;">
+                You’ll be redirected to Notion to authorize access.
+            </small>
+        </div>
+    </body>
+</html>

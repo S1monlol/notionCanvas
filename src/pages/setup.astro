@@ -1,0 +1,443 @@
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Connect Canvas to Notion</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+            :root {
+                --accent: #14604a;
+                --danger: #c00;
+            }
+            body {
+                font-family: system-ui, Arial, sans-serif;
+                background: #f7f7fa;
+                margin: 0;
+                padding: 2rem;
+                display: flex;
+                justify-content: center;
+            }
+            main {
+                width: 100%;
+                max-width: 880px;
+                background: #fff;
+                border-radius: 10px;
+                padding: 1.6rem 1.8rem;
+                box-shadow: 0 6px 30px rgba(0, 0, 0, 0.06);
+            }
+            h1 {
+                margin: 0 0 0.6rem 0;
+                font-size: 1.5rem;
+            }
+            p.lead {
+                margin: 0 0 1.1rem 0;
+                color: #333;
+            }
+            label.row-label {
+                font-weight: 500;
+                min-width: 160px;
+                display: inline-block;
+                margin-bottom: 0.2em;
+            }
+            select,
+            input[type="text"] {
+                padding: 0.36rem 0.6rem;
+                font-size: 1.01rem;
+                border-radius: 6px;
+                border: 1px solid #ddd;
+                min-width: 180px;
+            }
+            button.btn {
+                padding: 0.4rem 1.04rem;
+                border: none;
+                border-radius: 6px;
+                background: var(--accent);
+                color: white;
+                cursor: pointer;
+                margin-left: 0.2rem;
+            }
+            button.ghost {
+                background: transparent;
+                color: var(--accent);
+                border: 1px solid #e1eaea;
+                padding: 0.32rem 0.6rem;
+                margin-left: 0.2rem;
+                cursor: pointer;
+            }
+            .error {
+                color: var(--danger);
+                margin: 0 0 0.8em 0;
+                min-height: 1.2em;
+            }
+            .success {
+                color: #218a49;
+                margin: 0 0 0.8em 0;
+            }
+            .loading {
+                color: #888;
+                margin-top: 0.45em;
+            }
+            .mapping-table td,
+            .mapping-table th {
+                padding: 8px 6px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .mapping-table {
+                border-collapse: collapse;
+                margin-top: 0.7em;
+                width: 100%;
+                max-width: 600px;
+            }
+            .table-header {
+                background: #f6f8fa;
+            }
+            .table-actions {
+                margin-top: 13px;
+            }
+            .section {
+                margin: 1.3em 0;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>Setup Notion Import</h1>
+
+            <div id="setup-root"></div>
+        </main>
+        <script type="module">
+            let token =
+                window.localStorage.getItem("notion_oauth_access_token") || "";
+
+            if (!token) {
+                window.location.href = "/";
+            }
+
+            let notionDbs = [];
+            let selectedDb =
+                window.localStorage.getItem("notion_selected_db") || "";
+            let mapping = {};
+            let calendarUrl = localStorage.getItem("CANVAS_CALENDAR_URL") || "";
+            let userSettings = {};
+
+            async function render() {
+                const root = document.getElementById("setup-root");
+                root.innerHTML = `
+                <div id="error-message" class="error"></div>
+                <div id="success-message" class="success"></div>
+                <div id="loading-message" class="loading" style="display:none;">Loading...</div>
+
+          <div class="section">
+            <label class="row-label" for="db-select">1. Assignments database:</label>
+            <select id="db-select">
+              <option value="">-- Choose a database --</option>
+            </select>
+            <button class="btn" id="choose-db-btn">Choose database</button>
+          </div>
+
+
+
+          <div id="mapping-section" class="section" style="${selectedDb ? "" : "display:none"};">
+            <label class="row-label">2. Add Canvas classes:</label>
+            <table class="mapping-table">
+              <thead>
+                <tr class="table-header">
+                  <th>Canvas Class Name</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="mapping-table-body"></tbody>
+            </table>
+            <div class="table-actions">
+              <button class="btn" id="add-mapping-row-btn">Add Class</button>
+              <button class="btn" id="save-mappings-btn" style="margin-left:0.8em;">Save Classes</button>
+            </div>
+          </div>
+
+          <div id="import-section" class="section" style="display: none;">
+            <label class="row-label" for="calendar-url-input">3. Canvas calendar URL:</label>
+            <input id="calendar-url-input" type="text" placeholder="Canvas calendar URL" style="min-width:348px"
+                   value="${calendarUrl}">
+            <button id="import-btn" class="btn">Import from Canvas</button>
+          </div>
+        `;
+
+                const dbSelect = document.getElementById("db-select");
+                notionDbs.forEach((db) => {
+                    const opt = document.createElement("option");
+                    opt.value = db.id;
+                    opt.textContent = db.title;
+                    if (db.id === selectedDb) opt.selected = true;
+                    dbSelect.appendChild(opt);
+                });
+
+                function renderMappingRows() {
+                    const tbody = document.getElementById("mapping-table-body");
+                    tbody.innerHTML = "";
+                    Object.keys(mapping).forEach((cname, idx) => {
+                        const tr = document.createElement("tr");
+
+                        const tdName = document.createElement("td");
+                        const nameInput = document.createElement("input");
+                        nameInput.type = "text";
+                        nameInput.value = cname;
+                        nameInput.placeholder = "e.g. Biology";
+                        nameInput.className = "class-name-input";
+                        nameInput.onchange = (e) => {
+                            const newVal = e.target.value.trim();
+                            if (newVal && !mapping[newVal]) {
+                                mapping[newVal] = true;
+                                delete mapping[cname];
+                                renderMappingRows();
+                            }
+                        };
+                        tdName.appendChild(nameInput);
+
+                        const tdRem = document.createElement("td");
+                        const remBtn = document.createElement("button");
+                        remBtn.className = "ghost";
+                        remBtn.type = "button";
+                        remBtn.textContent = "Remove";
+                        remBtn.onclick = () => {
+                            delete mapping[cname];
+                            renderMappingRows();
+                        };
+                        tdRem.appendChild(remBtn);
+
+                        tr.appendChild(tdName);
+                        tr.appendChild(tdRem);
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                setTimeout(() => {
+                    const chooseDbBtn =
+                        document.getElementById("choose-db-btn");
+                    if (chooseDbBtn)
+                        chooseDbBtn.onclick = async () => {
+                            const val =
+                                document.getElementById("db-select").value;
+                            if (!val) {
+                                showError("Please choose a database.");
+                                return;
+                            }
+                            showError("");
+                            selectedDb = val;
+
+                            await saveUserSettings({
+                                selectedDatabaseId: selectedDb,
+                            });
+
+                            if (userSettings && userSettings.classes) {
+                                mapping = {};
+                                userSettings.classes.forEach((className) => {
+                                    mapping[className] = true;
+                                });
+                            }
+
+                            render();
+                            document.getElementById(
+                                "mapping-section",
+                            ).style.display = "";
+                            document.getElementById(
+                                "import-section",
+                            ).style.display = "";
+                        };
+
+                    const addBtn = document.getElementById(
+                        "add-mapping-row-btn",
+                    );
+                    if (addBtn)
+                        addBtn.onclick = () => {
+                            let i = 1;
+                            while (mapping[`Class${i}`]) i++;
+                            mapping[`Class${i}`] = true;
+                            renderMappingRows();
+                        };
+
+                    const saveBtn =
+                        document.getElementById("save-mappings-btn");
+                    if (saveBtn)
+                        saveBtn.onclick = async () => {
+                            await saveUserSettings({
+                                selectedDatabaseId: selectedDb,
+                                classes: Object.keys(mapping),
+                            });
+                            document.getElementById(
+                                "success-message",
+                            ).textContent = "Classes saved!";
+                        };
+
+                    const impBtn = document.getElementById("import-btn");
+                    if (impBtn) impBtn.onclick = runImport;
+
+                    const urlInp =
+                        document.getElementById("calendar-url-input");
+                    if (urlInp)
+                        urlInp.onchange = async (e) => {
+                            calendarUrl = e.target.value;
+                            await saveUserSettings({
+                                canvasCalendarUrl: calendarUrl,
+                            });
+                        };
+
+                    renderMappingRows();
+                }, 0);
+            }
+
+            async function fetchDbs() {
+                const res = await fetch("/api/notion-dbs", {
+                    headers: { Authorization: "Bearer " + token },
+                });
+                const data = await res.json();
+                return data.databases || [];
+            }
+
+            async function fetchDbProperties(dbId) {
+                const res = await fetch(
+                    `/api/notion-db-properties?dbId=${encodeURIComponent(dbId)}`,
+                    {
+                        headers: { Authorization: "Bearer " + token },
+                    },
+                );
+                const data = await res.json();
+                const properties = data.properties || [];
+                return properties;
+            }
+
+            function showLoading(msg) {
+                const el = document.getElementById("loading-message");
+                if (el) {
+                    el.textContent = msg || "Loading...";
+                    el.style.display = "";
+                }
+            }
+
+            function hideLoading() {
+                const el = document.getElementById("loading-message");
+                if (el) {
+                    el.style.display = "none";
+                }
+            }
+
+            function showError(msg) {
+                document.getElementById("error-message").textContent =
+                    msg || "";
+            }
+
+            async function runImport() {
+                showError("");
+                await saveUserSettings({
+                    selectedDatabaseId: selectedDb,
+                    classes: Object.keys(mapping),
+                });
+                hideLoading();
+                document.getElementById("success-message").textContent = "";
+
+                const dbId = selectedDb;
+                const url = document
+                    .getElementById("calendar-url-input")
+                    .value.trim();
+
+                if (!dbId || !url) {
+                    showError("Database and calendar URL are required.");
+                    return;
+                }
+
+                showLoading("Importing...");
+                try {
+                    const resp = await fetch("/api/import-canvas", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: "Bearer " + token,
+                        },
+                        body: JSON.stringify({
+                            calendarUrl: url,
+                            databaseId: dbId,
+                        }),
+                    });
+                    hideLoading();
+                    const data = await resp.json().catch(() => null);
+                    if (!resp.ok) {
+                        showError("Import failed: " + (data?.error || ""));
+                        return;
+                    }
+                    document.getElementById("success-message").textContent =
+                        `Import finished. Created: ${data.created_count ?? 0}, Skipped: ${data.skipped_count ?? 0}`;
+                } catch (e) {
+                    hideLoading();
+                    showError("Import error: " + (e.message || String(e)));
+                }
+            }
+
+            (async () => {
+                showLoading("Loading settings...");
+
+                await loadUserSettings();
+
+                notionDbs = await fetchDbs();
+                render();
+
+                if (selectedDb) {
+                    render();
+                    document.getElementById("mapping-section").style.display =
+                        "";
+                    document.getElementById("import-section").style.display =
+                        "";
+                }
+                hideLoading();
+            })();
+
+            async function loadUserSettings() {
+                try {
+                    const response = await fetch("/api/user-settings", {
+                        method: "GET",
+                        headers: {
+                            Authorization: "Bearer " + token,
+                        },
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.success) {
+                            userSettings = result.data;
+                            selectedDb = userSettings.selectedDatabaseId || "";
+                            calendarUrl = userSettings.canvasCalendarUrl || "";
+
+                            mapping = {};
+                            if (userSettings.classes) {
+                                userSettings.classes.forEach((className) => {
+                                    mapping[className] = true;
+                                });
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error loading user settings:", error);
+                }
+            }
+
+            async function saveUserSettings(updates) {
+                try {
+                    const response = await fetch("/api/user-settings", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: "Bearer " + token,
+                        },
+                        body: JSON.stringify(updates),
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        userSettings = result.data;
+                    } else {
+                        console.error("Error saving settings:", result.error);
+                    }
+                } catch (error) {
+                    console.error("Error saving user settings:", error);
+                }
+            }
+        </script>
+    </body>
+</html>

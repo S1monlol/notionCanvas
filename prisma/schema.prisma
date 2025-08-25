@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  notionUserId       String   @unique
+  accessToken        String
+  workspaceId        String?
+  workspaceName      String?
+  canvasCalendarUrl  String?
+  selectedDatabaseId String?
+  classes            Class[]
+
+  @@map("users")
+}
+
+model Class {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@map("classes")
+}
