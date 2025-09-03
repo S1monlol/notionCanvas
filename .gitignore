@@ -4,4 +4,8 @@ node_modules
 
 dist
 
+prisma/dev.db
+
+prisma/prisma
+
 /src/generated/prisma

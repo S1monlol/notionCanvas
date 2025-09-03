@@ -411,6 +411,11 @@
                                 });
                             }
                         }
+                    } else {
+                        // clear access token
+                        localStorage.removeItem("notion_oauth_access_token");
+
+                        window.location.replace("/");
                     }
                 } catch (error) {
                     console.error("Error loading user settings:", error);
