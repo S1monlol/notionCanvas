@@ -42,4 +42,4 @@ COPY --from=builder /app/dist/server ./dist/server
 EXPOSE 4321
 
 # Start the Astro server
-CMD npx prisma migrate deploy && npx prisma db push && node ./dist/server/entry.mjs
+CMD npx prisma migrate deploy && npx prisma db push && HOST=0.0.0.0 PORT=4321 node ./dist/server/entry.mjs
