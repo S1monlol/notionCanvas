@@ -1,5 +1,6 @@
 services:
   astro-app:
+    container_name: notionCanvas
     build:
       context: .
       dockerfile: Dockerfile
