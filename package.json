@@ -9,12 +9,12 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^12.6.5",
-    "@astrojs/node": "^9.4.3",
-    "@prisma/client": "^6.14.0",
-    "astro": "^5.13.3",
-    "ical.js": "^1.4.0",
-    "prisma": "^6.14.0"
+    "@astrojs/cloudflare": "latest",
+    "@astrojs/node": "latest",
+    "@prisma/client": "latest",
+    "astro": "latest",
+    "ical.js": "latest",
+    "prisma": "latest"
   },
   "devDependencies": {
     "wrangler": "^4.32.0"
