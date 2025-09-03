@@ -6,7 +6,6 @@ services:
     environment:
       # Add any environment variables your Astro app needs here
       NODE_ENV: production
-    network_mode: host
     restart: unless-stopped
     # Uncomment if you want to mount local code for development
     volumes:
