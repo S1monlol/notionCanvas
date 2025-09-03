@@ -39,5 +39,7 @@ COPY --from=builder /app/.env ./.env
 # By default, Astro outputs a server entry at ./dist/server/entry.mjs
 COPY --from=builder /app/dist/server ./dist/server
 
+EXPOSE 4321
+
 # Start the Astro server
 CMD npx prisma migrate deploy && npx prisma db push && node ./dist/server/entry.mjs
