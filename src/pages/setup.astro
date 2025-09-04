@@ -1,8 +1,9 @@
-<html lang="en">
+<html data-theme="dark" lang="en">
     <head>
         <meta charset="utf-8" />
         <title>Connect Canvas to Notion</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+
         <style>
             :root {
                 --accent: #14604a;
@@ -10,16 +11,16 @@
             }
             body {
                 font-family: system-ui, Arial, sans-serif;
-                background: #f7f7fa;
+                /*background: #f7f7fa;*/
                 margin: 0;
                 padding: 2rem;
                 display: flex;
                 justify-content: center;
             }
             main {
-                width: 100%;
+                width: 50%;
                 max-width: 880px;
-                background: #fff;
+                /*background: #fff;*/
                 border-radius: 10px;
                 padding: 1.6rem 1.8rem;
                 box-shadow: 0 6px 30px rgba(0, 0, 0, 0.06);
@@ -30,7 +31,7 @@
             }
             p.lead {
                 margin: 0 0 1.1rem 0;
-                color: #333;
+                /*color: #333;*/
             }
             label.row-label {
                 font-weight: 500;
@@ -43,7 +44,7 @@
                 padding: 0.36rem 0.6rem;
                 font-size: 1.01rem;
                 border-radius: 6px;
-                border: 1px solid #ddd;
+                /*border: 1px solid #ddd;*/
                 min-width: 180px;
             }
             button.btn {
@@ -103,6 +104,10 @@
             <h1>Setup Notion Import</h1>
 
             <div id="setup-root"></div>
+            <link
+                rel="stylesheet"
+                href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+            />
         </main>
         <script type="module">
             let token =
@@ -127,7 +132,7 @@
                 <div id="loading-message" class="loading" style="display:none;">Loading...</div>
 
           <div class="section">
-            <label class="row-label" for="db-select">1. Assignments database:</label>
+            <label class="row-label" for="db-select">Assignments database:</label>
             <select id="db-select">
               <option value="">-- Choose a database --</option>
             </select>
@@ -136,25 +141,10 @@
 
 
 
-          <div id="mapping-section" class="section" style="${selectedDb ? "" : "display:none"};">
-            <label class="row-label">2. Add Canvas classes:</label>
-            <table class="mapping-table">
-              <thead>
-                <tr class="table-header">
-                  <th>Canvas Class Name</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="mapping-table-body"></tbody>
-            </table>
-            <div class="table-actions">
-              <button class="btn" id="add-mapping-row-btn">Add Class</button>
-              <button class="btn" id="save-mappings-btn" style="margin-left:0.8em;">Save Classes</button>
-            </div>
-          </div>
+          <!-- Removed manual class mapping UI -->
 
-          <div id="import-section" class="section" style="display: none;">
-            <label class="row-label" for="calendar-url-input">3. Canvas calendar URL:</label>
+          <div id="import-section" class="section" style="display: none; margin-top: 1rem;">
+            <label class="row-label" for="calendar-url-input">Canvas calendar URL:</label>
             <input id="calendar-url-input" type="text" placeholder="Canvas calendar URL" style="min-width:348px"
                    value="${calendarUrl}">
             <button id="import-btn" class="btn">Import from Canvas</button>
@@ -170,44 +160,7 @@
                     dbSelect.appendChild(opt);
                 });
 
-                function renderMappingRows() {
-                    const tbody = document.getElementById("mapping-table-body");
-                    tbody.innerHTML = "";
-                    Object.keys(mapping).forEach((cname, idx) => {
-                        const tr = document.createElement("tr");
-
-                        const tdName = document.createElement("td");
-                        const nameInput = document.createElement("input");
-                        nameInput.type = "text";
-                        nameInput.value = cname;
-                        nameInput.placeholder = "e.g. Biology";
-                        nameInput.className = "class-name-input";
-                        nameInput.onchange = (e) => {
-                            const newVal = e.target.value.trim();
-                            if (newVal && !mapping[newVal]) {
-                                mapping[newVal] = true;
-                                delete mapping[cname];
-                                renderMappingRows();
-                            }
-                        };
-                        tdName.appendChild(nameInput);
-
-                        const tdRem = document.createElement("td");
-                        const remBtn = document.createElement("button");
-                        remBtn.className = "ghost";
-                        remBtn.type = "button";
-                        remBtn.textContent = "Remove";
-                        remBtn.onclick = () => {
-                            delete mapping[cname];
-                            renderMappingRows();
-                        };
-                        tdRem.appendChild(remBtn);
-
-                        tr.appendChild(tdName);
-                        tr.appendChild(tdRem);
-                        tbody.appendChild(tr);
-                    });
-                }
+                // Removed renderMappingRows: manual class mapping is no longer needed
 
                 setTimeout(() => {
                     const chooseDbBtn =
@@ -227,60 +180,19 @@
                                 selectedDatabaseId: selectedDb,
                             });
 
-                            if (userSettings && userSettings.classes) {
-                                mapping = {};
-                                userSettings.classes.forEach((className) => {
-                                    mapping[className] = true;
-                                });
-                            }
-
+                            // No longer loading/saving manual classes
                             render();
-                            document.getElementById(
-                                "mapping-section",
-                            ).style.display = "";
                             document.getElementById(
                                 "import-section",
                             ).style.display = "";
                         };
 
-                    const addBtn = document.getElementById(
-                        "add-mapping-row-btn",
-                    );
-                    if (addBtn)
-                        addBtn.onclick = () => {
-                            let i = 1;
-                            while (mapping[`Class${i}`]) i++;
-                            mapping[`Class${i}`] = true;
-                            renderMappingRows();
-                        };
-
-                    const saveBtn =
-                        document.getElementById("save-mappings-btn");
-                    if (saveBtn)
-                        saveBtn.onclick = async () => {
-                            await saveUserSettings({
-                                selectedDatabaseId: selectedDb,
-                                classes: Object.keys(mapping),
-                            });
-                            document.getElementById(
-                                "success-message",
-                            ).textContent = "Classes saved!";
-                        };
+                    // Removed add/save mapping buttons and logic
 
                     const impBtn = document.getElementById("import-btn");
                     if (impBtn) impBtn.onclick = runImport;
 
-                    const urlInp =
-                        document.getElementById("calendar-url-input");
-                    if (urlInp)
-                        urlInp.onchange = async (e) => {
-                            calendarUrl = e.target.value;
-                            await saveUserSettings({
-                                canvasCalendarUrl: calendarUrl,
-                            });
-                        };
-
-                    renderMappingRows();
+                    // No longer rendering mapping rows
                 }, 0);
             }
 
@@ -328,7 +240,6 @@
                 showError("");
                 await saveUserSettings({
                     selectedDatabaseId: selectedDb,
-                    classes: Object.keys(mapping),
                 });
                 hideLoading();
                 document.getElementById("success-message").textContent = "";
@@ -404,12 +315,7 @@
                             selectedDb = userSettings.selectedDatabaseId || "";
                             calendarUrl = userSettings.canvasCalendarUrl || "";
 
-                            mapping = {};
-                            if (userSettings.classes) {
-                                userSettings.classes.forEach((className) => {
-                                    mapping[className] = true;
-                                });
-                            }
+                            // No longer loading/saving manual classes
                         }
                     } else {
                         // clear access token

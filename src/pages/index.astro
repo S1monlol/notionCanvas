@@ -1,8 +1,12 @@
-<html lang="en">
+<html data-theme="dark" lang="en">
     <head>
         <meta charset="UTF-8" />
         <title>Canvas to Notion Integration</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+        />
         <script>
             if (localStorage.getItem("notion_oauth_access_token")) {
                 window.location.href = "/setup";
@@ -21,7 +25,6 @@
         <ul>
             <li>Log in with Notion</li>
             <li>Connect your Canvas calendar</li>
-            <li>Map your classes</li>
             <li>Import assignments to Notion with ease</li>
         </ul>
         <div style="margin-top: 2rem;">

@@ -216,6 +216,14 @@ export async function POST({ request }) {
     }
 
     function getClassInfo(summary) {
+      // Extract class name from square brackets at the end of the summary
+      // Example: "Smith and Brooks Activity (General Coursework) [ASC-101-Q1/Q2_25/FA]"
+      const match =
+        typeof summary === "string" ? summary.match(/\[([^\]]+)\]\s*$/) : null;
+      if (match) {
+        return { name: match[1], courseName: match[1] };
+      }
+      // Fallback: match against user's classes as before
       for (const classObj of user.classes) {
         const className = classObj.name;
         if (typeof summary === "string" && summary.includes(className)) {
@@ -374,6 +382,8 @@ export async function POST({ request }) {
         });
       }
     }
+
+    console.log(skipped);
 
     return new Response(
       JSON.stringify({
