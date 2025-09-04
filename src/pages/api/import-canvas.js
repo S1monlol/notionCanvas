@@ -101,15 +101,6 @@ export async function POST({ request }) {
       );
     }
 
-    if (user.classes.length === 0) {
-      return new Response(
-        JSON.stringify({
-          error: "No classes found. Please add classes in the setup page.",
-        }),
-        { status: 400 },
-      );
-    }
-
     const dbRes = await notionFetch(
       `https://api.notion.com/v1/databases/${databaseId}`,
       token,
@@ -223,13 +214,7 @@ export async function POST({ request }) {
       if (match) {
         return { name: match[1], courseName: match[1] };
       }
-      // Fallback: match against user's classes as before
-      for (const classObj of user.classes) {
-        const className = classObj.name;
-        if (typeof summary === "string" && summary.includes(className)) {
-          return { name: className, courseName: className };
-        }
-      }
+
       return { name: null, courseName: null };
     }
 
