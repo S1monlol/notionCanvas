@@ -14,8 +14,8 @@ async function notionFetch(url, token, opts = {}) {
   return res;
 }
 
-async function getExistingAssignmentTitles(databaseId, token) {
-  const titles = [];
+async function getExistingAssignments(databaseId, token) {
+  const assignments = [];
   let body = {};
   let res = await notionFetch(
     `https://api.notion.com/v1/databases/${databaseId}/query`,
@@ -36,7 +36,8 @@ async function getExistingAssignmentTitles(databaseId, token) {
         const t =
           page.properties?.Name?.title?.[0]?.plain_text ||
           page.properties?.Name?.title?.[0]?.text?.content;
-        if (t) titles.push(t);
+        const dueDate = page.properties?.["Due Date"]?.date?.start;
+        if (t) assignments.push({ title: t, pageId: page.id, dueDate });
       } catch (e) {
         // ignore
       }
@@ -60,7 +61,7 @@ async function getExistingAssignmentTitles(databaseId, token) {
     data = await res.json();
     accumulate(data);
   }
-  return titles;
+  return assignments;
 }
 
 export async function POST({ request }) {
@@ -149,11 +150,11 @@ export async function POST({ request }) {
       }
     }
 
-    let existingTitles = [];
+    let existingAssignments = [];
     try {
-      existingTitles = await getExistingAssignmentTitles(databaseId, token);
+      existingAssignments = await getExistingAssignments(databaseId, token);
     } catch (e) {
-      existingTitles = [];
+      existingAssignments = [];
     }
 
     const calResp = await fetch(calendarUrl);
@@ -206,67 +207,92 @@ export async function POST({ request }) {
       }
     }
 
+    // Improved class extraction
     function getClassInfo(summary) {
-      // Extract class name from square brackets at the end of the summary
-      // Example: "Smith and Brooks Activity (General Coursework) [ASC-101-Q1/Q2_25/FA]"
-      const match =
-        typeof summary === "string" ? summary.match(/\[([^\]]+)\]\s*$/) : null;
-      if (match) {
-        return { name: match[1], courseName: match[1] };
+      if (!summary || typeof summary !== "string")
+        return { name: null, courseName: null };
+
+      // Look for patterns like [ENGL-103-H_25/FA] or [ASC-101-Q1/Q2_25/FA]
+      const bracketMatch = summary.match(/\[([^\]]+)\]\s*$/);
+      if (bracketMatch) {
+        return { name: bracketMatch[1], courseName: bracketMatch[1] };
       }
+
+      // Add other fallback patterns here if needed
 
       return { name: null, courseName: null };
     }
 
-    async function initElement(calendar, i) {
+    // Use iCal.js Component API to parse events
+    const vcalendar = new ical.Component(calendar);
+    const vevents = vcalendar.getAllSubcomponents("vevent");
+
+    // Helper to update due date if changed
+    async function updateDueDate(pageId, newDueDate, token) {
+      const response = await notionFetch(
+        `https://api.notion.com/v1/pages/${pageId}`,
+        token,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            properties: {
+              "Due Date": {
+                date: {
+                  start: newDueDate,
+                },
+              },
+            },
+          }),
+        },
+      );
+      if (!response.ok) {
+        const t = await response.text();
+        throw new Error("Notion update page failed: " + t);
+      }
+      return await response.json();
+    }
+
+    for (const vevent of vevents) {
       try {
-        if (
-          !calendar[2] ||
-          !calendar[2][i] ||
-          !calendar[2][i][1] ||
-          !calendar[2][i][1][6] ||
-          calendar[2][i][1][6].length < 4
-        ) {
-          return "Invalid Event Structure";
-        }
+        const summary = vevent.getFirstPropertyValue("summary");
+        const dtstart = vevent.getFirstPropertyValue("dtstart");
+        const url = vevent.getFirstPropertyValue("url") || "";
+        const description = vevent.getFirstPropertyValue("description") || "";
 
-        let sum = calendar[2][i][1][6][3];
+        // Debugging output
+        console.log("Event summary:", summary);
 
-        let classInfo = getClassInfo(sum);
+        const classInfo = getClassInfo(summary);
+        console.log("Extracted class:", classInfo);
 
         if (!classInfo.courseName) {
           skipped.push({
-            summary: sum,
+            summary,
             reason: "No saved class matched",
           });
-          return "Class Not Found";
+          continue;
         }
 
-        if (existingTitles.includes(sum)) {
+        if (existingAssignments.some((a) => a.title === summary)) {
           skipped.push({
-            summary: sum,
+            summary,
+            dueDate: dtstart,
+            existingDueDate: existingAssignments.find(
+              (a) => a.title === summary,
+            )?.dueDate,
             reason: "Already exists in DB",
             matchedClass: classInfo.name,
           });
-          return "Already Exists";
+          continue;
         }
 
-        let doDate = calendar[2][i][1][2][3];
-        let link =
-          calendar[2][i][1][7] && calendar[2][i][1][7][3]
-            ? calendar[2][i][1][7][3]
-            : "";
-        let shortName =
-          sum.indexOf("[") > 0 ? sum.slice(0, sum.indexOf("[")).trim() : sum;
-
-        let date = new Date(doDate).toLocaleDateString();
-
+        // Build Notion page properties
         const newElement = {
           Name: {
             title: [
               {
                 text: {
-                  content: sum,
+                  content: summary,
                 },
               },
             ],
@@ -283,7 +309,10 @@ export async function POST({ request }) {
                     },
           "Due Date": {
             date: {
-              start: new Date(doDate).toISOString(),
+              start:
+                dtstart instanceof Date
+                  ? dtstart.toISOString()
+                  : new Date(dtstart).toISOString(),
             },
           },
         };
@@ -291,12 +320,15 @@ export async function POST({ request }) {
         if (datePropName) {
           newElement[datePropName] = {
             date: {
-              start: new Date(date),
+              start:
+                dtstart instanceof Date
+                  ? dtstart.toISOString()
+                  : new Date(dtstart).toISOString(),
             },
           };
         }
 
-        if (link) {
+        if (url) {
           const linkPropName = Object.keys(properties).find((pn) =>
             ["link", "url", "Link", "URL"].includes(pn),
           );
@@ -306,9 +338,9 @@ export async function POST({ request }) {
               rich_text: [
                 {
                   text: {
-                    content: shortName,
+                    content: summary,
                     link: {
-                      url: link,
+                      url: url,
                     },
                   },
                   annotations: {
@@ -319,45 +351,59 @@ export async function POST({ request }) {
                     code: false,
                     color: "default",
                   },
-                  plain_text: shortName,
-                  href: link,
+                  plain_text: summary,
+                  href: url,
                 },
               ],
             };
           }
         }
 
-        return newElement;
-      } catch (err) {
-        skipped.push({
-          reason: "Error initializing element: " + (err.message || err),
-        });
-        return "Error";
-      }
-    }
+        // Find if assignment exists
+        const existing = existingAssignments.find(
+          (a) => a.title === newElement.Name.title[0].text.content,
+        );
 
-    for (let i = 0; i < (calendar[2]?.length || 0); i++) {
-      try {
-        let element = await initElement(calendar, i);
-
-        if (
-          element === "Class Not Found" ||
-          element === "Already Exists" ||
-          element === "Error" ||
-          element === "Invalid Event Structure"
-        ) {
+        if (existing) {
+          // Compare due dates
+          const newDueDate = newElement["Due Date"].date.start;
+          if (existing.dueDate !== newDueDate) {
+            try {
+              await updateDueDate(existing.pageId, newDueDate, token);
+              created.push({
+                summary: `${newElement.Name.title[0].text.content} (Due date updated: ${existing.dueDate} → ${newDueDate})`,
+                updated_due_date: newDueDate,
+                old_due_date: existing.dueDate,
+              });
+            } catch (e) {
+              skipped.push({
+                summary: `${newElement.Name.title[0].text.content} (Due date update failed: ${existing.dueDate} → ${newDueDate})`,
+                reason: `Failed to update due date: ${e.message}`,
+                old_due_date: existing.dueDate,
+                new_due_date: newDueDate,
+              });
+            }
+          } else {
+            skipped.push({
+              summary: `${newElement.Name.title[0].text.content} (Due date unchanged: ${existing.dueDate})`,
+              reason: "Already exists in DB with correct due date",
+              old_due_date: existing.dueDate,
+              new_due_date: newDueDate,
+            });
+          }
           continue;
         }
 
+        // If not existing, create new
         try {
-          await addElementToDatabase(databaseId, element);
+          await addElementToDatabase(databaseId, newElement);
           created.push({
-            summary: element.Name.title[0].text.content,
-            created_for: element.Name.title[0].text.content,
+            summary: newElement.Name.title[0].text.content,
+            created_for: newElement.Name.title[0].text.content,
           });
         } catch (e) {
           skipped.push({
-            summary: element.Name.title[0].text.content,
+            summary: newElement.Name.title[0].text.content,
             reason: `Failed to create: ${e.message}`,
           });
         }
@@ -367,6 +413,8 @@ export async function POST({ request }) {
         });
       }
     }
+
+    console.log(created);
 
     console.log(skipped);
 

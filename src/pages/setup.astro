@@ -167,32 +167,27 @@
                         document.getElementById("choose-db-btn");
                     if (chooseDbBtn)
                         chooseDbBtn.onclick = async () => {
-                            const val =
+                            const selectedDb =
                                 document.getElementById("db-select").value;
-                            if (!val) {
+                            if (!selectedDb) {
                                 showError("Please choose a database.");
                                 return;
                             }
+
                             showError("");
-                            selectedDb = val;
 
                             await saveUserSettings({
                                 selectedDatabaseId: selectedDb,
                             });
 
-                            // No longer loading/saving manual classes
                             render();
                             document.getElementById(
                                 "import-section",
                             ).style.display = "";
                         };
 
-                    // Removed add/save mapping buttons and logic
-
                     const impBtn = document.getElementById("import-btn");
                     if (impBtn) impBtn.onclick = runImport;
-
-                    // No longer rendering mapping rows
                 }, 0);
             }
 
@@ -238,9 +233,20 @@
 
             async function runImport() {
                 showError("");
-                await saveUserSettings({
-                    selectedDatabaseId: selectedDb,
-                });
+                const selectedDb = document.getElementById("db-select").value;
+                if (!selectedDb) {
+                    showError("Please choose a database.");
+                    return;
+                }
+
+                const canvasCalendarUrl =
+                    document.getElementById("calendar-url-input").value;
+
+                if (!canvasCalendarUrl) {
+                    showError("Please enter a Canvas calendar URL.");
+                    return;
+                }
+
                 hideLoading();
                 document.getElementById("success-message").textContent = "";
 
@@ -291,8 +297,6 @@
 
                 if (selectedDb) {
                     render();
-                    document.getElementById("mapping-section").style.display =
-                        "";
                     document.getElementById("import-section").style.display =
                         "";
                 }

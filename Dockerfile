@@ -22,7 +22,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ---- Production Stage ----
-FROM node:18-alpine AS runner
+FROM node:21-alpine AS runner
 
 WORKDIR /app
 
