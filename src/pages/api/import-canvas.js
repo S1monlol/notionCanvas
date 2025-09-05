@@ -210,17 +210,23 @@ export async function POST({ request }) {
     // Improved class extraction
     function getClassInfo(summary) {
       if (!summary || typeof summary !== "string")
-        return { name: null, courseName: null };
+        return { name: null, courseName: null, baseSummary: summary };
 
       // Look for patterns like [ENGL-103-H_25/FA] or [ASC-101-Q1/Q2_25/FA]
       const bracketMatch = summary.match(/\[([^\]]+)\]\s*$/);
       if (bracketMatch) {
-        return { name: bracketMatch[1], courseName: bracketMatch[1] };
+        // Remove the class name and any whitespace before it
+        const baseSummary = summary.replace(/\s*\[[^\]]+\]\s*$/, "").trim();
+        return {
+          name: bracketMatch[1],
+          courseName: bracketMatch[1],
+          baseSummary,
+        };
       }
 
       // Add other fallback patterns here if needed
 
-      return { name: null, courseName: null };
+      return { name: null, courseName: null, baseSummary: summary };
     }
 
     // Use iCal.js Component API to parse events
@@ -273,13 +279,20 @@ export async function POST({ request }) {
           continue;
         }
 
-        if (existingAssignments.some((a) => a.title === summary)) {
+        // Remove class name from Notion Name and check for duplicates by baseSummary
+        if (
+          existingAssignments.some((a) => {
+            const aBase = a.title.replace(/\s*\[[^\]]+\]\s*$/, "").trim();
+            return aBase === classInfo.baseSummary;
+          })
+        ) {
           skipped.push({
             summary,
             dueDate: dtstart,
-            existingDueDate: existingAssignments.find(
-              (a) => a.title === summary,
-            )?.dueDate,
+            existingDueDate: existingAssignments.find((a) => {
+              const aBase = a.title.replace(/\s*\[[^\]]+\]\s*$/, "").trim();
+              return aBase === classInfo.baseSummary;
+            })?.dueDate,
             reason: "Already exists in DB",
             matchedClass: classInfo.name,
           });
@@ -292,7 +305,7 @@ export async function POST({ request }) {
             title: [
               {
                 text: {
-                  content: summary,
+                  content: classInfo.baseSummary,
                 },
               },
             ],
